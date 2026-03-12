@@ -15,20 +15,27 @@ namespace KogamaToolsEx.Plugin.Misc
         }
     }
 
-
     [HarmonyPatch]
     internal static class GameInitHook
     {
-        // todo find something better to hook into this is shit
+        private static bool initialzed = false;
+
+        // todo find something better to hook into, this is shit
+        // none of the init methods worked
         [HarmonyPatch(typeof(SpawnRolesRuntimeData), "ToString")]
         [HarmonyPostfix]
         private static void Initialize_Postfix()
         {
+            if (initialzed)
+                return;
+
             KogamaTools.Logger.LogInfo("Invoking init methods");
-            InvokeMethods();
+            InvokeInitMethods();
+
+            initialzed = true;
         }
 
-        private static void InvokeMethods()
+        private static void InvokeInitMethods()
         {
             var methods = Assembly.GetExecutingAssembly()
                .GetTypes()
