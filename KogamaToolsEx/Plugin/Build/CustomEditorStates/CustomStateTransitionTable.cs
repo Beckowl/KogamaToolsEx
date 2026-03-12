@@ -12,11 +12,6 @@ namespace KogamaToolsEx.Plugin.Build.CustomEditorStates
             AddState(EditorEventEx.ESAddLink, new ESTest());
         }
 
-        public bool GetState(Il2CppEnum<EditorEventEx> e, out ESStateCustomBase state)
-        {
-            return table.TryGetValue(e, out state);
-        }
-
         public bool GetState(EditorEventEx e, out ESStateCustomBase state)
         {
             return table.TryGetValue(e, out state);

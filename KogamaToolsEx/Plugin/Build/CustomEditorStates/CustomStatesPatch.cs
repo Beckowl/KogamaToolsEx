@@ -12,6 +12,12 @@ namespace KogamaToolsEx.Plugin.Build.CustomEditorStates
         [HarmonyPrefix]
         private static void FSMEntity_Event_Setter_Prefix(FSMEntity __instance, Il2CppSystem.Object value, ref bool __runOriginal)
         {
+            if (value == null || value.Pointer == IntPtr.Zero)
+            {
+                __runOriginal = true;
+                return;
+            }
+
             Il2CppEnum<EditorEventEx> evt = new(value.Pointer);
 
             if (!transitionTable.GetState(evt, out ESStateCustomBase state))
@@ -32,14 +38,6 @@ namespace KogamaToolsEx.Plugin.Build.CustomEditorStates
                 return;
 
             e.nextEvent = evt;
-
-            // ??
-            if (value == null)
-            {
-                e.currentState.Exit(e);
-                e.currentState = null;
-                return;
-            }
 
             if (state != null)
             {
