@@ -2,7 +2,7 @@
 using MV.WorldObject.SpawnRoles;
 using System.Reflection;
 
-namespace KogamaToolsEx.Misc
+namespace KogamaToolsEx.Plugin.Misc
 {
     [AttributeUsage(AttributeTargets.Method, Inherited = false, AllowMultiple = false)]
     internal class InvokeOnInitAttribute : Attribute
@@ -42,6 +42,7 @@ namespace KogamaToolsEx.Misc
             {
                 try
                 {
+
                     KogamaTools.Logger.LogInfo($"Invoking {method.Name}");
 
                     method.Invoke(null, null);

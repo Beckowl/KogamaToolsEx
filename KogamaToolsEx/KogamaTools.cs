@@ -2,13 +2,12 @@
 using BepInEx.Logging;
 using BepInEx.Unity.IL2CPP;
 using HarmonyLib;
-using KogamaToolsEx;
-using KogamaToolsEx.Misc;
+using KogamaToolsEx.Plugin.Misc;
 
-namespace KogamaToolsX;
+namespace KogamaToolsEx;
 
 [BepInPlugin(PluginMeta.GUID, PluginMeta.NAME, PluginMeta.VERSION)]
-public class Plugin : BasePlugin
+public class KogamaTools : BasePlugin
 {
     internal static ManualLogSource Logger;
 
@@ -16,7 +15,7 @@ public class Plugin : BasePlugin
 
     public override void Load()
     {
-        Logger = base.Log;
+        Logger = Log;
         Logger.LogInfo($"Plugin {PluginMeta.GUID} is loaded!");
 
         harmony.PatchAll();

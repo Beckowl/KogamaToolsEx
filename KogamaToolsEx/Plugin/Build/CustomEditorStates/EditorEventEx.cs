@@ -1,0 +1,37 @@
+﻿namespace KogamaToolsEx.Plugin.Build.CustomEditorStates
+{
+    public enum EditorEventEx
+    {
+        EditCubes = EditorEvent.EditCubes,
+        SelectCubes = EditorEvent.SelectCubes,
+        Rotating = EditorEvent.Rotating,
+        ObjectSelected = EditorEvent.ObjectSelected,
+        UndefinedState = EditorEvent.UndefinedState,
+        ESTerrainEdit = EditorEvent.ESTerrainEdit,
+        ESWaitForSelect = EditorEvent.ESWaitForSelect,
+        ESSettingsMenu = EditorEvent.ESSettingsMenu,
+        ESWaitForGroup = EditorEvent.ESWaitForGroup,
+        ESWaitForUngroup = EditorEvent.ESWaitForUngroup,
+        ESTranslate = EditorEvent.ESTranslate,
+        ESWaitForClone = EditorEvent.ESWaitForClone,
+        ESAddLink = EditorEvent.ESAddLink,
+        ESWalkMode = EditorEvent.ESWalkMode,
+        ESInsert = EditorEvent.ESInsert,
+        ESAddObjectLink = EditorEvent.ESAddObjectLink,
+        ESBlueprintCreator = EditorEvent.ESBlueprintCreator,
+        CERoam = EditorEvent.CERoam,
+        CEEditBody = EditorEvent.CEEditBody,
+        ESBodyCreator = EditorEvent.ESBodyCreator,
+        ESAddToMarketPlaceState = EditorEvent.ESAddToMarketPlaceState,
+        CEAvatarAccessory = EditorEvent.CEAvatarAccessory,
+        PMAvatarAccessory = EditorEvent.PMAvatarAccessory,
+        CERoamUUI = EditorEvent.CERoamUUI,
+        CEEditBodyUUI = EditorEvent.CEEditBodyUUI,
+        CEAvatarAccessoryUUI = EditorEvent.CEAvatarAccessoryUUI,
+        ESEnterCubeTutorial = EditorEvent.ESEnterCubeTutorial,
+        ESEditCubeTutorial = EditorEvent.ESEditCubeTutorial,
+        ESLeaveCubeTutorial = EditorEvent.ESLeaveCubeTutorial,
+        ESWaitForPlayModeAvatar = EditorEvent.ESWaitForPlayModeAvatar,
+        ESWaitForBuildModeAvatar = EditorEvent.ESWaitForBuildModeAvatar,
+    }
+}
