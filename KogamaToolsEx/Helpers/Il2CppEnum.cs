@@ -2,15 +2,15 @@
 
 namespace KogamaToolsEx.Helpers
 {
-    internal class Il2CppEnum<T> : Il2CppSystem.Enum where T : unmanaged, Enum
+    internal unsafe class Il2CppEnum<T> : Il2CppSystem.Enum where T : unmanaged, Enum
     {
         public Il2CppEnum(IntPtr pointer) : base(pointer) { }
 
         public Il2CppEnum() : base(IL2CPP.il2cpp_object_new(Il2CppClassPointerStore<T>.NativeClassPtr)) { }
 
-        public unsafe Il2CppEnum(T value) : base(IL2CPP.il2cpp_value_box(Il2CppClassPointerStore<T>.NativeClassPtr, new IntPtr(&value))) { }
+        public Il2CppEnum(T value) : base(IL2CPP.il2cpp_value_box(Il2CppClassPointerStore<T>.NativeClassPtr, new IntPtr(&value))) { }
 
-        public unsafe T Value
+        public T Value
         {
             get
             {
@@ -26,5 +26,11 @@ namespace KogamaToolsEx.Helpers
 
         public static implicit operator T(Il2CppEnum<T> value) => value.Value;
         public static implicit operator Il2CppEnum<T>(T value) => new(value);
+
+        public static T Unbox(IntPtr pointer)
+        {
+            var ptr = IL2CPP.il2cpp_object_unbox(pointer);
+            return *(T*)ptr;
+        }
     }
 }

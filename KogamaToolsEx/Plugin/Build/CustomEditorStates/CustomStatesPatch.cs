@@ -18,7 +18,7 @@ namespace KogamaToolsEx.Plugin.Build.CustomEditorStates
                 return;
             }
 
-            Il2CppEnum<EditorEventEx> evt = new(value.Pointer);
+            EditorEventEx evt = Il2CppEnum<EditorEventEx>.Unbox(value.Pointer);
 
             if (!transitionTable.GetState(evt, out ESStateCustomBase state))
             {
@@ -28,7 +28,7 @@ namespace KogamaToolsEx.Plugin.Build.CustomEditorStates
 
             __runOriginal = false;
 
-            KogamaTools.Logger.LogInfo($"Switching to custom editor state {evt.Value}");
+            KogamaTools.Logger.LogInfo($"Switching to custom editor state {evt.ToString()}");
 
             // this is a recreation of the original method
 
@@ -37,18 +37,18 @@ namespace KogamaToolsEx.Plugin.Build.CustomEditorStates
             if (e.lockState)
                 return;
 
-            e.nextEvent = evt;
+            e.nextEvent = value;
 
             if (state != null)
             {
                 if (e.currentState != null)
                     e.currentState.Exit(e);
 
-                e.stateName = evt.Value.ToString();
+                e.stateName = evt.ToString();
                 // we don't set the current state because i'ts a managed object
                 e.nextEvent = null;
                 e.prevEvent = e.curEvent;
-                e.curEvent = evt;
+                e.curEvent = value;
                 state.Enter(e);
                 e.data.Clear();
             }
@@ -63,7 +63,7 @@ namespace KogamaToolsEx.Plugin.Build.CustomEditorStates
 
         private static bool HandleCustomState(FSMEntity e, StateMethod method)
         {
-            EditorEventEx evt = new Il2CppEnum<EditorEventEx>(e.curEvent.Pointer);
+            EditorEventEx evt = Il2CppEnum<EditorEventEx>.Unbox(e.curEvent.Pointer);
 
             if (!transitionTable.GetState(evt, out var state))
                 return true;
