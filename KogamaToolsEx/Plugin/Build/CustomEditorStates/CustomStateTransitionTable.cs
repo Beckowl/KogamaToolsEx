@@ -1,5 +1,4 @@
-﻿using KogamaToolsEx.Helpers;
-using KogamaToolsEx.Plugin.Build.CustomEditorStates.States;
+﻿using KogamaToolsEx.Plugin.Build.CustomEditorStates.States;
 
 namespace KogamaToolsEx.Plugin.Build.CustomEditorStates
 {
@@ -9,7 +8,8 @@ namespace KogamaToolsEx.Plugin.Build.CustomEditorStates
 
         public CustomStateTransitionTable()
         {
-            AddState(EditorEventEx.ESAddLink, new ESTest());
+            AddState(EditorEventEx.ESAddLink, new ESAddLinkFix());
+            AddState(EditorEventEx.ESAddObjectLink, new ESAddObjectLinkFix());
         }
 
         public bool GetState(EditorEventEx e, out ESStateCustomBase state)
