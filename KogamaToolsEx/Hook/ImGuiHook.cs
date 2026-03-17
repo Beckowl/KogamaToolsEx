@@ -7,6 +7,7 @@ namespace KogamaToolsEx.Hook
     internal class ImGuiHook : IDisposable
     {
         public event Action OnRender;
+        public event Action OnInitialized;
 
         private bool injected = false;
         private IntPtr moduleHandle = IntPtr.Zero;
@@ -74,6 +75,8 @@ namespace KogamaToolsEx.Hook
         {
             KogamaTools.Logger.LogInfo($"ImGui ready, context: {context}");
             ImGuiNET.ImGui.SetCurrentContext(context);
+
+            OnInitialized?.Invoke();
         }
 
         private void RenderCallback()
