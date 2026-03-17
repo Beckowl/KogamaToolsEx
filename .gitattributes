@@ -62,9 +62,9 @@
 #*.rtf   diff=astextplain
 #*.RTF   diff=astextplain
 
-imgui/* linguist-vendored
-minhook/* linguist-vendored
-kiero.cpp linguist-vendored
-kiero.h linguist-vendored
-cimgui.cpp linguist-vendored
-cimgui.h linguist-vendored
+**/imgui/** linguist-vendored
+**/minhook/** linguist-vendored
+**/kiero.cpp linguist-vendored
+**/kiero.h linguist-vendored
+**/cimgui.cpp linguist-vendored
+**/cimgui.h linguist-vendored
