@@ -11,7 +11,6 @@ namespace KogamaToolsEx;
 public class KogamaTools : BasePlugin
 {
     private readonly Harmony harmony = new(PluginMeta.GUID);
-    private ImGuiHook imguiHook = new();
     internal static ManualLogSource Logger;
 
     public override void Load()
@@ -20,17 +19,16 @@ public class KogamaTools : BasePlugin
         Logger.LogInfo($"Plugin {PluginMeta.GUID} is loaded!");
 
         harmony.PatchAll();
-        imguiHook.Initialize();
 
-        // test
-        imguiHook.OnRender += () => ImGui.ShowDemoWindow();
+        ImGuiHook.Initialize();
+        ImGuiHook.OnRender += () => ImGui.ShowDemoWindow();
     }
 
     public override bool Unload()
     {
         Logger.LogInfo("Unloading");
 
-        imguiHook.Dispose();
+        ImGuiHook.Shutdown();
 
         return false; // ?
     }

@@ -140,6 +140,7 @@
     <ClInclude Include="bridge.h" />
     <ClInclude Include="cimgui.h" />
     <ClInclude Include="framework.h" />
+    <ClInclude Include="imgui_hook.h" />
     <ClInclude Include="kiero.h" />
     <ClInclude Include="minhook\MinHook.h" />
   </ItemGroup>
@@ -147,6 +148,7 @@
     <ClCompile Include="bridge.cpp" />
     <ClCompile Include="cimgui.cpp" />
     <ClCompile Include="dllmain.cpp" />
+    <ClCompile Include="imgui_hook.cpp" />
     <ClCompile Include="imgui\backends\imgui_impl_dx11.cpp" />
     <ClCompile Include="imgui\backends\imgui_impl_win32.cpp" />
     <ClCompile Include="imgui\imgui.cpp" />

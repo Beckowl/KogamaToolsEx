@@ -1,16 +1,15 @@
 ﻿using BepInEx;
 using System.Runtime.InteropServices;
-using System.ComponentModel;
 
 namespace KogamaToolsEx.Hook
 {
-    internal class ImGuiHook : IDisposable
+    internal static class ImGuiHook
     {
-        public event Action OnRender;
-        public event Action OnInitialized;
+        public static event Action OnRender;
+        public static event Action OnInitialized;
+        public static event Action OnDestroy;
 
-        private bool injected = false;
-        private IntPtr moduleHandle = IntPtr.Zero;
+        private static IntPtr moduleHandle = IntPtr.Zero;
 
         private static DrawCallbackDelegate drawDelegate;
         private static InitedCallbackDelegate initDelegate;
@@ -18,91 +17,76 @@ namespace KogamaToolsEx.Hook
         delegate void DrawCallbackDelegate();
         delegate void InitedCallbackDelegate(IntPtr context);
 
-        public void Initialize()
+        public static void Initialize()
         {
-            Inject();
-            RedirectSymbols();
-            SetupCallbacks();
-        }
-
-        private void Inject()
-        {
-            if (injected)
-                return;
-
-            KogamaTools.Logger.LogInfo("Injecting Dear ImGui hook...");
-
-            string path = Path.Combine(Paths.PluginPath, "ImGuiHook.dll");
-            IntPtr handle = LoadLibraryW(path);
-
-            KogamaTools.Logger.LogInfo($"Handle: {handle}, Path: {path}");
-
-            if (handle == IntPtr.Zero)
+            if (moduleHandle != IntPtr.Zero)
             {
-                string msg = new Win32Exception(Marshal.GetLastWin32Error()).Message;
-                KogamaTools.Logger.LogError($"Failed to load hook DLL, error: {msg}");
-
+                KogamaTools.Logger.LogWarning("ImGuiHook already initialized");
                 return;
             }
 
-            injected = true;
-            moduleHandle = handle;
-        }
+            string path = Path.Combine(Paths.PluginPath, "ImGuiHook.dll");
 
-        private void RedirectSymbols()
-        {
-            NativeLibrary.SetDllImportResolver(typeof(ImGuiNET.ImGui).Assembly, (name, assembly, path) => {
+            try
+            {
+                moduleHandle = NativeLibrary.Load(path);
+                KogamaTools.Logger.LogInfo($"ImGui module handle: {moduleHandle}");
+            }
+            catch (Exception ex)
+            {
+                KogamaTools.Logger.LogError($"Failed to load hook DLL: {ex.Message}");
+                return;
+            }
+
+            // force imguiNET's p/invokes to resolve to the hook DLL instead of the original cimgui.dll
+            // game will crash if i don't do this
+            NativeLibrary.SetDllImportResolver(typeof(ImGuiNET.ImGui).Assembly, (name, assembly, path) =>
+            {
                 if (name == "cimgui")
-                    return NativeLibrary.Load("ImGuiHook.dll");
+                    return moduleHandle;
 
                 return IntPtr.Zero;
             });
-        }
-
-        private void SetupCallbacks()
-        {
-            if (!injected) 
-                return;
 
             initDelegate = OnImGuiReady;
             drawDelegate = RenderCallback;
 
-            RegisterInitedCallback(Marshal.GetFunctionPointerForDelegate(initDelegate));
-            RegisterDrawCallback(Marshal.GetFunctionPointerForDelegate(drawDelegate));
+            ImGuiHook_RegisterReadyCallback(Marshal.GetFunctionPointerForDelegate(initDelegate));
+            ImGuiHook_RegisterDrawCallback(Marshal.GetFunctionPointerForDelegate(drawDelegate));
         }
 
-        private void OnImGuiReady(IntPtr context)
+        public static void Shutdown()
         {
-            KogamaTools.Logger.LogInfo($"ImGui ready, context: {context}");
+            if (moduleHandle != IntPtr.Zero)
+            {
+                OnDestroy?.Invoke();
+                ImGuiHook_Deinit();
+
+                NativeLibrary.Free(moduleHandle);
+                moduleHandle = IntPtr.Zero;
+            }
+        }
+
+        private static void OnImGuiReady(IntPtr context)
+        {
+            KogamaTools.Logger.LogInfo($"ImGui ready, context ptr: {context}");
             ImGuiNET.ImGui.SetCurrentContext(context);
 
             OnInitialized?.Invoke();
         }
 
-        private void RenderCallback()
+        private static void RenderCallback()
         {
             OnRender?.Invoke();
         }
 
-        public void Dispose()
-        {
-            if (moduleHandle != IntPtr.Zero)
-            {
-                FreeLibrary(moduleHandle);
-                moduleHandle = IntPtr.Zero;
-            }
-        }
-
-        [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
-        private static extern IntPtr LoadLibraryW(string path);
-
-        [DllImport("kernel32.dll")]
-        private static extern bool FreeLibrary(IntPtr hModule);
+        [DllImport("ImGuiHook.dll")]
+        private static extern void ImGuiHook_RegisterDrawCallback(IntPtr callback);
 
         [DllImport("ImGuiHook.dll")]
-        private static extern void RegisterDrawCallback(IntPtr callback);
+        private static extern void ImGuiHook_RegisterReadyCallback(IntPtr callback);
 
         [DllImport("ImGuiHook.dll")]
-        private static extern void RegisterInitedCallback(IntPtr callback);
+        private static extern void ImGuiHook_Deinit();
     }
 }
