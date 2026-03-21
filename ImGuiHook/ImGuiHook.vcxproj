@@ -84,6 +84,7 @@
     <ClInclude Include="imgui_hook.h" />
     <ClInclude Include="kiero.h" />
     <ClInclude Include="minhook\MinHook.h" />
+    <ClInclude Include="stb_image.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="cimgui.cpp" />

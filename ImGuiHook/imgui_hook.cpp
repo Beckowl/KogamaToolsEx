@@ -7,6 +7,9 @@
 #include "imgui_hook.h"
 #include "kiero.h"
 
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
+
 extern LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 typedef HRESULT(__stdcall* Present)(IDXGISwapChain*, UINT, UINT);
@@ -193,4 +196,63 @@ void ImGuiHook_Shutdown()
     kiero::shutdown();
 
     initialized = false;
+}
+
+ImGuiTexture* ImGuiHook_TexFromMemory(const void* mem, int width, int height)
+{
+    if (!pDevice || !mem)
+        return NULL;
+
+    D3D11_TEXTURE2D_DESC desc = {};
+    desc.Width = (UINT)width;
+    desc.Height = (UINT)height;
+    desc.MipLevels = 1;
+    desc.ArraySize = 1;
+    desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+    desc.SampleDesc.Count = 1;
+    desc.Usage = D3D11_USAGE_DEFAULT;
+    desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+
+    D3D11_SUBRESOURCE_DATA data = {};
+    data.pSysMem = mem;
+    data.SysMemPitch = (UINT)(width * 4);
+
+    ID3D11Texture2D* pTex = NULL;
+
+    if (FAILED(pDevice->CreateTexture2D(&desc, &data, &pTex)))
+        return NULL;
+
+    D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+    srvDesc.Format = desc.Format;
+    srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+    srvDesc.Texture2D.MipLevels = 1;
+    srvDesc.Texture2D.MostDetailedMip = 0;
+
+    ID3D11ShaderResourceView* srv = NULL;
+    HRESULT hr = pDevice->CreateShaderResourceView(pTex, &srvDesc, &srv);
+    pTex->Release();
+
+    if (FAILED(hr))
+        return NULL;
+
+    return srv;
+}
+
+ImGuiTexture* ImGuiHook_TexFromFile(const char* path)
+{
+    int width, height, channels;
+    unsigned char* data = stbi_load(path, &width, &height, &channels, 4);
+
+    if (!data)
+        return NULL;
+
+    ImGuiTexture* tex = ImGuiHook_TexFromMemory(data, width, height);
+    stbi_image_free(data);
+
+    return tex;
+}
+
+void ImGuiHook_FreeTexture(ImGuiTexture* tex) {
+    if (tex)
+        tex->Release();
 }
