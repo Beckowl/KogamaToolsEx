@@ -1,4 +1,4 @@
-﻿using BepInEx;
+﻿using System.Reflection;
 using System.Runtime.InteropServices;
 
 namespace KogamaToolsEx.Hook
@@ -11,11 +11,11 @@ namespace KogamaToolsEx.Hook
 
         private static IntPtr moduleHandle = IntPtr.Zero;
 
-        private static DrawCallbackDelegate drawDelegate;
-        private static InitedCallbackDelegate initDelegate;
+        delegate void DrawCallback();
+        delegate void ReadyCallback();
 
-        delegate void DrawCallbackDelegate();
-        delegate void InitedCallbackDelegate(IntPtr context);
+        private static DrawCallback drawDelegate;
+        private static ReadyCallback initDelegate;
 
         public static void Initialize()
         {
@@ -25,11 +25,11 @@ namespace KogamaToolsEx.Hook
                 return;
             }
 
-            string path = Path.Combine(Paths.PluginPath, "ImGuiHook.dll");
-
             try
             {
-                moduleHandle = NativeLibrary.Load(path);
+                var cd = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+  
+                moduleHandle = NativeLibrary.Load(Path.Combine(cd, "ImGuiHook.dll"));
                 KogamaTools.Logger.LogInfo($"ImGui module handle: {moduleHandle}");
             }
             catch (Exception ex)
@@ -49,10 +49,9 @@ namespace KogamaToolsEx.Hook
             });
 
             initDelegate = OnImGuiReady;
-            drawDelegate = RenderCallback;
+            drawDelegate = OnDrawCallback;
 
-            ImGuiHook_RegisterReadyCallback(Marshal.GetFunctionPointerForDelegate(initDelegate));
-            ImGuiHook_RegisterDrawCallback(Marshal.GetFunctionPointerForDelegate(drawDelegate));
+            Task.Run(() => { ImGuiHook_Start(Marshal.GetFunctionPointerForDelegate(initDelegate), Marshal.GetFunctionPointerForDelegate(drawDelegate)); } );
         }
 
         public static void Shutdown()
@@ -60,33 +59,28 @@ namespace KogamaToolsEx.Hook
             if (moduleHandle != IntPtr.Zero)
             {
                 OnDestroy?.Invoke();
-                ImGuiHook_Deinit();
+                ImGuiHook_Shutdown();
 
                 NativeLibrary.Free(moduleHandle);
                 moduleHandle = IntPtr.Zero;
             }
         }
 
-        private static void OnImGuiReady(IntPtr context)
+        private static void OnImGuiReady()
         {
-            KogamaTools.Logger.LogInfo($"ImGui ready, context ptr: {context}");
-            ImGuiNET.ImGui.SetCurrentContext(context);
-
+            KogamaTools.Logger.LogInfo($"ImGui ready");
             OnInitialized?.Invoke();
         }
 
-        private static void RenderCallback()
+        private static void OnDrawCallback()
         {
             OnRender?.Invoke();
         }
 
         [DllImport("ImGuiHook.dll")]
-        private static extern void ImGuiHook_RegisterDrawCallback(IntPtr callback);
+        private static extern void ImGuiHook_Start(IntPtr readyCb, IntPtr drawCb);
 
         [DllImport("ImGuiHook.dll")]
-        private static extern void ImGuiHook_RegisterReadyCallback(IntPtr callback);
-
-        [DllImport("ImGuiHook.dll")]
-        private static extern void ImGuiHook_Deinit();
+        private static extern void ImGuiHook_Shutdown();
     }
 }

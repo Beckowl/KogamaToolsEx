@@ -5,7 +5,6 @@
 #include <imgui_impl_win32.h>
 
 #include "imgui_hook.h"
-#include "bridge.h"
 #include "kiero.h"
 
 extern LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
@@ -13,14 +12,20 @@ extern LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam
 typedef HRESULT(__stdcall* Present)(IDXGISwapChain*, UINT, UINT);
 typedef HRESULT(__stdcall* ResizeBuffers)(IDXGISwapChain*, UINT, UINT, UINT, DXGI_FORMAT, UINT);
 
-static Present oPresent = NULL;
-static ResizeBuffers oResizeBuffers = NULL;
+#define RELEASE(p) do { if (p) { (p)->Release(); (p) = NULL; } } while(0)
 
 static ID3D11Device* pDevice = NULL;
 static ID3D11DeviceContext* pContext = NULL;
 static ID3D11RenderTargetView* mainRTV = NULL;
+
+static Present oPresent = NULL;
+static ResizeBuffers oResizeBuffers = NULL;
+
 static HWND window = NULL;
 static WNDPROC oWndProc = NULL;
+
+static ReadyCallback readyCallback = NULL;
+static DrawCallback drawCallback = NULL;
 
 static bool initialized = false;
 
@@ -29,18 +34,18 @@ static LRESULT __stdcall WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
     if (ImGui::GetCurrentContext() && ImGui_ImplWin32_WndProcHandler(hWnd, msg, wParam, lParam))
         return true;
 
-    ImGuiIO& io = ImGui::GetIO();
+    const ImGuiIO& io = ImGui::GetIO();
 
     // block mouse input (so it doesn't go through the ImGui window)
     if (io.WantCaptureMouse)
     {
         switch (msg)
         {
-            case WM_LBUTTONDOWN: case WM_LBUTTONUP:
-            case WM_RBUTTONDOWN: case WM_RBUTTONUP:
-            case WM_MBUTTONDOWN: case WM_MBUTTONUP:
-            case WM_XBUTTONDOWN: case WM_XBUTTONUP:
-                return 0;
+        case WM_LBUTTONDOWN: case WM_LBUTTONUP:
+        case WM_RBUTTONDOWN: case WM_RBUTTONUP:
+        case WM_MBUTTONDOWN: case WM_MBUTTONUP:
+        case WM_XBUTTONDOWN: case WM_XBUTTONUP:
+            return 0;
         }
     }
 
@@ -49,21 +54,32 @@ static LRESULT __stdcall WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
     {
         switch (msg)
         {
-            case WM_KEYDOWN: case WM_KEYUP:
-            case WM_SYSKEYDOWN: case WM_SYSKEYUP:
-            case WM_CHAR:
-                return 0;
+        case WM_KEYDOWN: case WM_KEYUP:
+        case WM_SYSKEYDOWN: case WM_SYSKEYUP:
+        case WM_CHAR:
+            return 0;
         }
     }
 
     return CallWindowProc(oWndProc, hWnd, msg, wParam, lParam);
 }
 
-static void ImGuiHook_Init(IDXGISwapChain* pSwapChain)
+static ID3D11RenderTargetView* CreateRTV(IDXGISwapChain* pSwapChain)
 {
-    if (initialized)
-        return;
+    ID3D11Texture2D* pBackBuffer = NULL;
+    ID3D11RenderTargetView* rtv = NULL;
 
+    if (FAILED(pSwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), (void**)&pBackBuffer)))
+        return NULL;
+
+    pDevice->CreateRenderTargetView(pBackBuffer, NULL, &rtv);
+    pBackBuffer->Release();
+
+    return rtv;
+}
+
+static void Initialize(IDXGISwapChain* pSwapChain)
+{
     if (FAILED(pSwapChain->GetDevice(__uuidof(ID3D11Device), (void**)&pDevice)))
         return;
 
@@ -73,11 +89,7 @@ static void ImGuiHook_Init(IDXGISwapChain* pSwapChain)
     pSwapChain->GetDesc(&sd);
     window = sd.OutputWindow;
 
-    ID3D11Texture2D* pBackBuffer = NULL;
-    pSwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), (void**)&pBackBuffer);
-    pDevice->CreateRenderTargetView(pBackBuffer, NULL, &mainRTV);
-    pBackBuffer->Release();
-
+    mainRTV = CreateRTV(pSwapChain);
     oWndProc = (WNDPROC)SetWindowLongPtr(window, GWLP_WNDPROC, (LONG_PTR)WndProc);
 
     ImGui::CreateContext();
@@ -91,61 +103,73 @@ static void ImGuiHook_Init(IDXGISwapChain* pSwapChain)
     ImGui_ImplDX11_Init(pDevice, pContext);
 
     initialized = true;
-    Bridge_SetReady();
+
+    if (readyCallback != NULL)
+        readyCallback();
 }
 
-static void ImGuiHook_RenderFrame()
+static void RenderFrame()
 {
-    if (!ImGui::GetCurrentContext())
+    if (!pContext || !mainRTV)
         return;
 
     ImGui_ImplDX11_NewFrame();
     ImGui_ImplWin32_NewFrame();
     ImGui::NewFrame();
 
-    Bridge_InvokeDrawCallback();
+    if (drawCallback != NULL)
+        drawCallback();
 
     ImGui::Render();
     pContext->OMSetRenderTargets(1, &mainRTV, NULL);
     ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
 }
 
-static HRESULT __stdcall hkPresent(IDXGISwapChain* pSwapChain, UINT SyncInterval, UINT Flags)
+static HRESULT __stdcall HookPresent(IDXGISwapChain* pSwapChain, UINT syncInterval, UINT flags)
 {
-    ImGuiHook_Init(pSwapChain);
-    ImGuiHook_RenderFrame();
-    return oPresent(pSwapChain, SyncInterval, Flags);
+    if (!initialized)
+        Initialize(pSwapChain);
+
+    RenderFrame();
+            
+    return oPresent(pSwapChain, syncInterval, flags);
 }
 
-HRESULT __stdcall hkResizeBuffers(IDXGISwapChain* pSwapChain, UINT BufferCount, UINT Width, UINT Height, DXGI_FORMAT NewFormat, UINT SwapChainFlags)
+static HRESULT __stdcall HookResizeBuffers(IDXGISwapChain* pSwapChain, UINT bufferCount, UINT width, UINT height, DXGI_FORMAT newFormat, UINT swapChainFlags)
 {
-    if (mainRTV) {
+    if (pContext)
         pContext->OMSetRenderTargets(0, NULL, NULL);
-        mainRTV->Release();
-        mainRTV = NULL;
-    }
 
-    HRESULT hr = oResizeBuffers(pSwapChain, BufferCount, Width, Height, NewFormat, SwapChainFlags);
+    RELEASE(mainRTV);
 
-    if (SUCCEEDED(hr) && Width > 0 && Height > 0) {
-        ID3D11Texture2D* pBuffer = NULL;
-        pSwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), (void**)&pBuffer);
-        pDevice->CreateRenderTargetView(pBuffer, NULL, &mainRTV);
-        pBuffer->Release();
+    HRESULT hr = oResizeBuffers(pSwapChain, bufferCount, width, height, newFormat, swapChainFlags);
+
+    if (SUCCEEDED(hr) && width > 0 && height > 0)
+    {
+        mainRTV = CreateRTV(pSwapChain);
+
+        if (mainRTV == NULL)
+            return hr;
+
         pContext->OMSetRenderTargets(1, &mainRTV, NULL);
-        D3D11_VIEWPORT vp = { 0, 0, (float)Width, (float)Height, 0, 1 };
+
+        D3D11_VIEWPORT vp = { 0, 0, (float)width, (float)height, 0, 1 };
         pContext->RSSetViewports(1, &vp);
     }
 
     return hr;
 }
 
-void ImGuiHook_Start()
+void ImGuiHook_Start(ReadyCallback readyCb, DrawCallback drawCb)
 {
-    while (kiero::init(kiero::RenderType::D3D11) != kiero::Status::Success);
+    drawCallback = drawCb;
+    readyCallback = readyCb;
 
-    kiero::bind(8, (void**)&oPresent, hkPresent);
-    kiero::bind(13, (void**)&oResizeBuffers, hkResizeBuffers);
+    while (kiero::init(kiero::RenderType::D3D11) != kiero::Status::Success)
+        Sleep(1);
+
+    kiero::bind(8, (void**)&oPresent, HookPresent);
+    kiero::bind(13, (void**)&oResizeBuffers, HookResizeBuffers);
 }
 
 void ImGuiHook_Shutdown()
@@ -160,9 +184,9 @@ void ImGuiHook_Shutdown()
     ImGui_ImplWin32_Shutdown();
     ImGui::DestroyContext();
 
-    if (mainRTV) { mainRTV->Release();     mainRTV = NULL; }
-    if (pContext) { pContext->Release(); pContext = NULL; }
-    if (pDevice) { pDevice->Release();  pDevice = NULL; }
+    RELEASE(mainRTV);
+    RELEASE(pContext);
+    RELEASE(pDevice);
 
     kiero::unbind(8);
     kiero::unbind(13);
